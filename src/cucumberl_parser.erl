@@ -119,7 +119,6 @@ process_line({LineNum, Line}, {Acc,  {Section0, GWT0}}) ->
         end,
     {[Parsed | Acc], {Section1, GWT1}}.
 
-
 numbered_lines(Lines) ->
     NLines = length(Lines),
     lists:zip(lists:seq(1, NLines, 1), Lines).
@@ -133,6 +132,8 @@ lines(FilePath) ->
 
 lines([], CurrLine, Lines) ->
     lists:reverse([lists:reverse(CurrLine) | Lines]);
+lines([[$\r] | Rest], CurrLine, Lines) ->
+    lines(Rest, CurrLine, Lines);
 lines([$\n | Rest], CurrLine, Lines) ->
     lines(Rest, [], [lists:reverse(CurrLine) | Lines]);
 lines([X | Rest], CurrLine, Lines) ->
@@ -206,3 +207,28 @@ string_to_atoms_test() ->
                  string_to_atoms("a bb ccc")),
     ?assertMatch([a, bb, ccc],
                  string_to_atoms("  a  bb   ccc  ")).
+
+
+process_lines_test() ->
+    Text = "Feature: Addition
+In order to avoid silly mistakes
+As a math idiot
+I want to be told the sum of two numbers
+
+Scenario: Add two numbers
+  Given I have entered 50 into the calculator
+  And I have entered 70 into the calculator
+  When I press add
+  Then the result should be 120 on the screen",
+    Lines = lines(Text, [], []),
+    ?assert(is_list(Lines)),
+    NumberedLines = numbered_lines(Lines),
+
+    lists:foreach(fun(L) -> ?assertMatch({_N, _Line}, L) end, NumberedLines),
+
+    ?assertMatch( {_Tree, _}
+                , lists:foldl( fun process_line/2
+                             , {[], {undefined, undefined}}
+                             , expanded_lines(NumberedLines)
+                             )
+                ).
